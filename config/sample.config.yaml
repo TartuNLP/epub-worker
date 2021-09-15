@@ -1,8 +1,7 @@
 exchange: domain-detection
 # List of supported languages. 2-letter codes should be used (if available)
 languages:
-  - source:
-    target:
+  -
 
 # TODO Parameters required by the DomainDetectionWorker, the keys in this file should match the arguments of the class.
 parameters:
