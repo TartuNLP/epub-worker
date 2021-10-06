@@ -3,7 +3,7 @@ RUN apt-get update && \
     apt-get install -y build-essential && \
     conda install -c conda-forge conda-pack mamba
 
-COPY environments/environment.yml .
+COPY config/environment.yml .
 RUN mamba env create -f environment.yml -n venv && \
     rm environment.yml && \
     conda-pack -n venv -o /tmp/env.tar && \
@@ -30,10 +30,9 @@ USER app
 
 COPY --from=build --chown=app:app /venv /venv
 ENV PATH="/venv/bin:${PATH}"
+
 COPY --chown=app:app . .
 
-RUN python -c "import nltk; nltk.download(\"punkt\")";
-
-RUN echo "python worker.py --worker \$WORKER_NAME" > entrypoint.sh
+RUN echo "python main.py" > entrypoint.sh
 
 ENTRYPOINT ["bash", "entrypoint.sh"]

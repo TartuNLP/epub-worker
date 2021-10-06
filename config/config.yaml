@@ -1,0 +1,8 @@
+languages:
+  - et
+  - en
+  - ru
+  - de
+
+parameters:
+  model: models/model.pt

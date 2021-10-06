@@ -3,21 +3,19 @@ import logging
 from sys import getsizeof
 from time import time, sleep
 
-from marshmallow import ValidationError
 from typing import List
 
 import pika
 import pika.exceptions
 
-from helpers import Response, Request, RequestSchema, MQItem
-from settings import SIZE_WARNING_THRESHOLD, SIZE_ERROR_THRESHOLD
-from worker import DomainDetectionWorker
+from .utils import Response, Request, RequestSchema
+from .domain_detector import DomainDetector
 
-LOGGER = logging.getLogger("domain_detection")
+LOGGER = logging.getLogger("nmt_worker")
 
 
 class MQConsumer:
-    def __init__(self, worker: DomainDetectionWorker,
+    def __init__(self, domain_detector: DomainDetector,
                  connection_parameters: pika.connection.ConnectionParameters,
                  exchange_name: str,
                  routing_keys: List[str]):
@@ -25,13 +23,13 @@ class MQConsumer:
         Initializes a RabbitMQ consumer class that listens for requests for a specific worker and responds to
         them.
 
-        :param worker: A worker instance to be used.
+        :param domain_detector: A domain_detector instance to be used.
         :param connection_parameters: RabbitMQ connection_parameters parameters.
         :param exchange_name: RabbitMQ exchange name.
         :param routing_keys: RabbitMQ routing keys. The actual queue name will also automatically include the exchange
         name to ensure that unique queues names are used.
         """
-        self.worker = worker
+        self.domain_detector = domain_detector
 
         self.exchange_name = exchange_name
         self.routing_keys = sorted(routing_keys)
@@ -64,7 +62,7 @@ class MQConsumer:
         any alternative routing keys as needed.
         """
         LOGGER.info(f'Connecting to RabbitMQ server: {{host: {self.connection_parameters.host}, '
-                    f'port :{self.connection_parameters.port}}}')
+                    f'port: {self.connection_parameters.port}}}')
         connection = pika.BlockingConnection(self.connection_parameters)
         self.channel = connection.channel()
         self.channel.queue_declare(queue=self.queue_name)
@@ -77,15 +75,22 @@ class MQConsumer:
         self.channel.basic_consume(queue=self.queue_name, on_message_callback=self._on_request)
 
     @staticmethod
-    def _respond(channel: pika.adapters.blocking_connection.BlockingChannel, mq_item: MQItem, response: bytes):
+    def _respond(channel: pika.adapters.blocking_connection.BlockingChannel, method: pika.spec.Basic.Deliver,
+                 properties: pika.BasicProperties, body: bytes):
         """
         Publish the response to the callback queue and acknowledge the original queue item.
         """
         channel.basic_publish(exchange='',
-                              routing_key=mq_item.reply_to,
-                              properties=pika.BasicProperties(correlation_id=mq_item.correlation_id),
-                              body=response)
-        channel.basic_ack(delivery_tag=mq_item.delivery_tag)
+                              routing_key=properties.reply_to,
+                              properties=pika.BasicProperties(
+                                  correlation_id=properties.correlation_id,
+                                  content_type='application/json',
+                                  headers={
+                                      'RequestId': properties.headers["RequestId"],
+                                      'ReturnMessageType': properties.headers["ReturnMessageType"]
+                                  }),
+                              body=body)
+        channel.basic_ack(delivery_tag=method.delivery_tag)
 
     def _on_request(self, channel: pika.adapters.blocking_connection.BlockingChannel, method: pika.spec.Basic.Deliver,
                     properties: pika.BasicProperties, body: bytes):
@@ -93,33 +98,20 @@ class MQConsumer:
         Pass the request to the worker and return its response.
         """
         t1 = time()
-        mq_item = MQItem(method.delivery_tag,
-                         properties.reply_to,
-                         properties.correlation_id,
-                         json.loads(body))
-        LOGGER.info(f"Received request: {{id: {mq_item.correlation_id}, size: {getsizeof(body)} bytes}}")
+        LOGGER.info(f"Received request: {{id: {properties.correlation_id}, size: {getsizeof(body)} bytes}}")
         try:
-            request = RequestSchema().load(mq_item.request)
+            request = json.loads(body)
+            request = RequestSchema().load(request)
             request = Request(**request)
-            response = self.worker.process_request(request).encode()
-        except ValidationError as error:
-            return Response(status=f'Error parsing input: {error.messages}', status_code=400)
+            response = self.domain_detector.process_request(request)
         except Exception as e:
             LOGGER.error(e)
-            response = Response(status_code=500, status="Unknown internal error during processing.").encode()
+            response = Response()
 
         respose_size = getsizeof(response)
-        if respose_size > 1024 * 1024 * SIZE_WARNING_THRESHOLD:
-            LOGGER.warning(f"Response size exceeds the recommended threshold: {{id: {mq_item.correlation_id},"
-                           f"size: {respose_size}}}")
-        if respose_size > 1024 * 1024 * SIZE_ERROR_THRESHOLD:
-            LOGGER.error(f"Response size exceeds RabbitMQ message size threshold: {{id: {mq_item.correlation_id},"
-                         f"size: {respose_size}}}")
-            response = Response(status_code=413, status=f"Response size exceeds internal communication message size "
-                                                        f"threshold. Size: {respose_size}").encode()
 
-        self._respond(channel, mq_item, response)
+        self._respond(channel, method, properties, response.encode())
         t2 = time()
 
-        LOGGER.info(f"Request processed: {{id: {mq_item.correlation_id}, duration: {round(t2 - t1, 3)} s, "
+        LOGGER.info(f"Request processed: {{id: {properties.correlation_id}, duration: {round(t2 - t1, 3)} s, "
                     f"size: {respose_size} bytes}}")
