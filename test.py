@@ -19,7 +19,7 @@ class DomainDetectionTests(unittest.TestCase):
         text = ["Eesti on iseseisev ja sõltumatu demokraatlik vabariik, kus kõrgeima riigivõimu kandja on rahvas.",
                 "Eesti iseseisvus ja sõltumatus on aegumatu ning võõrandamatu."]
         prediction = domain_detector.predict(text)
-        self.assertIn(prediction, config['parameters'].labels.values())
+        self.assertIn(prediction, config['parameters']["labels"].values())
 
     def test_request_response(self):
         """

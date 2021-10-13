@@ -1,5 +1,6 @@
 import logging
-from transformers import XLMRobertaForSequenceClassification, Trainer, AutoTokenizer
+from transformers import XLMRobertaForSequenceClassification, AutoTokenizer
+import torch
 import numpy as np
 from nltk import sent_tokenize
 
@@ -7,15 +8,21 @@ from .utils import Response, Request
 
 logger = logging.getLogger("domain_detection")
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 class DomainDetector:
 
     def __init__(self, labels: dict, checkpoint_path: str = "models/domain-detection-model", tokenizer_path: str =
     "models/tokenizer"):
         self.labels = labels
-        model = XLMRobertaForSequenceClassification.from_pretrained(checkpoint_path)
-        self.trainer = Trainer(model=model)
+        self.model = self._get_model(checkpoint_path)
         self.tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base", cache_dir=tokenizer_path)
+
+    def _get_model(self, checkpoint_path: str):
+        model = XLMRobertaForSequenceClassification.from_pretrained(checkpoint_path)
+        model.to(DEVICE)
+        model.eval()
+        return model
 
     @staticmethod
     def _sentence_tokenize(text: str) -> list:
@@ -29,9 +36,11 @@ class DomainDetector:
         return sentences
 
     def predict(self, sentences: list) -> str:
-        tokenized_sents = self.tokenizer(sentences)
-        predictions = self.trainer.predict(tokenized_sents)
-        predictions = np.argmax(predictions[0], axis=1)
+        tokenized_sents = self.tokenizer(sentences, return_tensors="pt", truncation=True, padding='max_length', max_length=256)
+        tokenized_sents.to(DEVICE)
+        
+        predictions = self.model(**tokenized_sents)
+        predictions = predictions[0].cpu().data.numpy().argmax(axis=1)
 
         counts = np.bincount(predictions)
 
