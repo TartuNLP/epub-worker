@@ -11,7 +11,7 @@ import pika.exceptions
 from .utils import Response, Request, RequestSchema
 from .domain_detector import DomainDetector
 
-LOGGER = logging.getLogger("nmt_worker")
+LOGGER = logging.getLogger("domain_detection")
 
 
 class MQConsumer:
@@ -105,7 +105,7 @@ class MQConsumer:
             request = Request(**request)
             response = self.domain_detector.process_request(request)
         except Exception as e:
-            LOGGER.error(e)
+            LOGGER.exception(e)
             response = Response()
 
         respose_size = getsizeof(response)

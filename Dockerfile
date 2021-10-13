@@ -22,7 +22,6 @@ FROM debian:buster
 
 ENV PYTHONIOENCODING=utf-8
 WORKDIR /app
-VOLUME /app/models
 
 RUN adduser --disabled-password --gecos "app" app && \
     chown -R app:app /app
@@ -30,6 +29,9 @@ USER app
 
 COPY --from=build --chown=app:app /venv /venv
 ENV PATH="/venv/bin:${PATH}"
+
+RUN python -c "import nltk; nltk.download(\"punkt\")" && \
+    python -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained(\"xlm-roberta-base\", cache_dir=\"models/tokenizer\")";
 
 COPY --chown=app:app . .
 

@@ -3,6 +3,11 @@ languages:
   - en
   - ru
   - de
-
 parameters:
-  model: models/model.pt
+  checkpoint_path: models/domain-detection-model
+  tokenizer_path: models/tokenizer
+  labels:
+    0: general
+    1: crisis
+    2: legal
+    3: military
