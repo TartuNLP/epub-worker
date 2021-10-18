@@ -87,7 +87,7 @@ class MQConsumer:
                                   content_type='application/json',
                                   headers={
                                       'RequestId': properties.headers["RequestId"],
-                                      'ReturnMessageType': properties.headers["ReturnMessageType"]
+                                      'MT-MessageType': properties.headers["ReturnMessageType"]
                                   }),
                               body=body)
         channel.basic_ack(delivery_tag=method.delivery_tag)
