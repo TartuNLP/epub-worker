@@ -1,13 +1,6 @@
 languages:
   - et
-  - en
-  - ru
-  - de
 parameters:
-  checkpoint_path: models/domain-detection-model
-  tokenizer_path: models/tokenizer
-  labels:
-    0: general
-    1: crisis
-    2: legal
-    3: military
+  transcriber_path: /opt/kaldi-offline-transcriber
+  nthreads: 8
+  clean: true

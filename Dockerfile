@@ -1,39 +1,11 @@
-FROM continuumio/miniconda3 as build
-RUN apt-get update && \
-    apt-get install -y build-essential && \
-    conda install -c conda-forge conda-pack mamba
+FROM alumae/kaldi-offline-transcriber-et:latest
 
-COPY config/environment.yml .
-RUN mamba env create -f environment.yml -n venv && \
-    rm environment.yml && \
-    conda-pack -n venv -o /tmp/env.tar && \
-    mkdir /venv &&  \
-    cd /venv && \
-    tar xf /tmp/env.tar && \
-    rm /tmp/env.tar && \
-    /venv/bin/conda-unpack && \
-    conda clean -afy && \
-    find /opt/conda/ -follow -type f -name '*.a' -delete && \
-    find /opt/conda/ -follow -type f -name '*.pyc' -delete && \
-    find /opt/conda/ -follow -type f -name '*.js.map' -delete && \
-    conda env remove -n venv
+COPY requirements.txt .
 
-FROM debian:buster
+RUN pip install --user -r requirements.txt && \
+    rm requirements.txt
 
-ENV PYTHONIOENCODING=utf-8
-WORKDIR /app
-
-RUN adduser --disabled-password --gecos "app" app && \
-    chown -R app:app /app
-USER app
-
-COPY --from=build --chown=app:app /venv /venv
-ENV PATH="/venv/bin:${PATH}"
-
-RUN python -c "import nltk; nltk.download(\"punkt\")" && \
-    python -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained(\"xlm-roberta-base\", cache_dir=\"models/tokenizer\")";
-
-COPY --chown=app:app . .
+COPY . .
 
 RUN echo "python main.py" > entrypoint.sh
 
