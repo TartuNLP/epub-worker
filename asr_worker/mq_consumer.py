@@ -10,8 +10,8 @@ from typing import List
 import pika
 import pika.exceptions
 
-from .utils import Request, RequestSchema, Response
-from .asr import ASR
+from .asr_utils import Request, RequestSchema, Response
+from .asr_worker import ASR
 
 LOGGER = logging.getLogger("asr")
 
@@ -30,8 +30,8 @@ class MQConsumer:
         :param connection_parameters: RabbitMQ connection_parameters parameters.
         :param exchange_name: RabbitMQ exchange name.
         :param routing_keys: RabbitMQ routing keys. The actual queue name will also automatically include the exchange
-        :param http_parameters: HTTP Basic Authentication parameters
         name to ensure that unique queues names are used.
+        :param http_parameters: HTTP Basic Authentication parameters
         """
         self.asr = asr
 
@@ -81,6 +81,13 @@ class MQConsumer:
         self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(queue=self.queue_name, on_message_callback=self._on_request)
 
+    def _download_file(self, job_id, file_extension):
+        with requests.get(f"{self.http_host}/{job_id}/audio", auth=self.http_parameters, stream=True) as r:
+            r.raise_for_status()
+            with open(f"audio/{job_id}.{file_extension}", 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
     def _on_request(self, channel: pika.adapters.blocking_connection.BlockingChannel, method: pika.spec.Basic.Deliver,
                     properties: pika.BasicProperties, body: bytes):
         """
@@ -97,13 +104,8 @@ class MQConsumer:
             job_id = request.correlation_id
             file_extension = request.file_extension
 
-            audio_response = requests.get(f"{self.http_host}/{job_id}/audio", auth=self.http_parameters)
-
-            audio_response.raise_for_status()
-
-            with open(f"{self.asr.transcriber_path}/src-audio/{job_id}.{file_extension}", "wb") as file:
-                file.write(audio_response.content)
-                response = self.asr.process_request(f"{job_id}.{file_extension}")
+            self._download_file(job_id=job_id, file_extension=file_extension)
+            response = self.asr.process_request(f"{job_id}.{file_extension}")
 
         except Exception as e:
             LOGGER.exception(e)

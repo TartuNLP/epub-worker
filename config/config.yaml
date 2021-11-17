@@ -1,6 +1,5 @@
 languages:
   - et
 parameters:
-  transcriber_path: /opt/kaldi-offline-transcriber
-  nthreads: 8
+  transcriber_path: /opt/kiirkirjutaja
   clean: true

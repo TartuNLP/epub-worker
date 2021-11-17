@@ -7,7 +7,7 @@ from pika import ConnectionParameters, credentials
 from requests.auth import HTTPBasicAuth
 
 from asr_worker.mq_consumer import MQConsumer
-from asr_worker.asr import ASR
+from asr_worker.asr_worker import ASR
 
 if __name__ == "__main__":
 
