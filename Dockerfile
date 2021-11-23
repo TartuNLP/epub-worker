@@ -7,6 +7,12 @@ RUN pip install --user -r requirements.txt && \
 
 COPY . .
 
+WORKDIR /opt/kiirkirjutaja
+
+RUN mkdir "audio"
+
+RUN mkdir "output"
+
 RUN echo "python asr_main.py" > entrypoint.sh
 
 ENTRYPOINT ["bash", "entrypoint.sh"]
