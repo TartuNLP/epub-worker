@@ -105,13 +105,12 @@ class MQConsumer:
             file_extension = request.file_extension
 
             self._download_file(job_id=job_id, file_extension=file_extension)
-            response = self.asr.process_request(f"{job_id}.{file_extension}")
+            response = self.asr.process_request(f"{job_id}.{file_extension}", self.http_host, properties.correlation_id,
+                                                self.http_parameters)
 
         except Exception as e:
             LOGGER.exception(e)
             response = Response(success=False, result='Internal exception')
-
-        response_size = getsizeof(response)
 
         LOGGER.info(f"Transcription done, now sending it to {self.http_host}/{properties.correlation_id}/transcription")
 
@@ -124,5 +123,4 @@ class MQConsumer:
 
         t2 = time()
 
-        LOGGER.info(f"Request processed: {{id: {properties.correlation_id}, duration: {round(t2 - t1, 3)} s, "
-                    f"size: {response_size} bytes}}")
+        LOGGER.info(f"Request processed: {{id: {properties.correlation_id}, duration: {round(t2 - t1, 3)} s}}")

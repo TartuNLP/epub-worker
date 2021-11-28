@@ -1,12 +1,14 @@
+import io
 import logging
 import os
-from io import TextIOBase
+import requests
 
 from .asr_utils import Response
 
 import ray
 # Needed for loading the speaker change detection model
 from pytorch_lightning.utilities import argparse_utils
+
 setattr(argparse_utils, "_gpus_arg_default", lambda x: 0)
 
 from vad import SpeechSegmentGenerator
@@ -20,7 +22,7 @@ from compound import CompoundReconstructor
 from words2numbers import Words2Numbers
 from punctuate import Punctuate
 from confidence import confidence_filter
-from presenters import *
+from presenters import WordByWordPresenter
 import utils
 
 # Use all the available CPUs
@@ -46,40 +48,46 @@ class ASR:
             "models/online-speaker-change-detector/checkpoints/epoch=102.ckpt")
         self.vosk_model = vosk.Model("models/asr_model")
 
-    def predict(self, filename: str, output_file: TextIOBase):
+    def predict(self, filename: str, host, correlation_id, auth):
+        output_file = io.StringIO()
         presenter = WordByWordPresenter(output_file)
 
         speech_segment_generator = SpeechSegmentGenerator(f"audio/{filename}")
         language_filter = LanguageFilter()
         for speech_segment in speech_segment_generator.speech_segments():
-            # print("New segment")
             presenter.segment_start()
-
-            speech_segment_start_time = speech_segment.start_sample / 16000
 
             turn_generator = TurnGenerator(self.scd_model, speech_segment)
             for i, turn in enumerate(turn_generator.turns()):
-                # print("New turn")
                 if i > 0:
                     presenter.new_turn()
-                turn_start_time = (speech_segment.start_sample + turn.start_sample) / 16000
 
                 turn_decoder = TurnDecoder(self.vosk_model, language_filter.filter(turn.chunks()))
                 for res in turn_decoder.decode_results():
-                    # logging.info("Result: " + str(res))
                     if "result" in res:
                         processed_res = self._process_result(res)
 
                         if res["final"]:
+                            result = output_file.getvalue()
+                            output_file.close()
+                            response = Response(result=result, final=False)
+                            requests.post(f"{host}/{correlation_id}/transcription",
+                                          data=response.encode(),
+                                          auth=auth)
+
+                            output_file = io.StringIO()
+                            presenter.output_file = output_file
                             presenter.final_result(processed_res["result"])
                         else:
                             presenter.partial_result(processed_res["result"])
             presenter.segment_end()
+        result = output_file.getvalue()
+        output_file.close()
+        return result
 
     @staticmethod
     def _process_result(result):
         result = unk_decoder.post_process(result)
-        text = ""
         if "result" in result:
             text = " ".join([wi["word"] for wi in result["result"]])
 
@@ -99,17 +107,10 @@ class ASR:
         else:
             logger.warning(f"Cleanup of file {filename} failed because file doesn't exist")
 
-    def process_request(self, filename: str):
-        basename = os.path.splitext(filename)[0]
-        with open(f"output/{basename}.txt", "w") as output_file:
-            logger.info(f"Output file name: {output_file}")
-            self.predict(filename=filename, output_file=output_file)
+    def process_request(self, filename: str, host, correlation_id, auth):
+        result = self.predict(filename, host, correlation_id, auth)
 
-        with open(f"output/{basename}.txt", "r") as prediction_file:
-            result = prediction_file.read()
+        if self.clean:
+            self._cleanup(f"audio/{filename}")
 
-            if self.clean:
-                self._cleanup(f"audio/{filename}")
-                self._cleanup(f"output/{basename}.txt")
-
-            return Response(result=result, success=True)
+        return Response(result=result)

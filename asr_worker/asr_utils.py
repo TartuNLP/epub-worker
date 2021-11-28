@@ -1,7 +1,6 @@
 import json
 from dataclasses import dataclass, asdict
 from marshmallow import Schema, fields
-from typing import Optional, Union
 
 
 class RequestSchema(Schema):
@@ -24,7 +23,8 @@ class Response:
     A dataclass that can be used to store responses and transfer them over the message queue if needed.
     """
     result: str
-    success: bool
+    success: bool = True
+    final: bool = True
 
     def encode(self) -> bytes:
         return json.dumps(asdict(self)).encode()
