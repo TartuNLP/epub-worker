@@ -1,11 +1,6 @@
 import json
-from dataclasses import dataclass, asdict
-from marshmallow import Schema, fields
-
-
-class RequestSchema(Schema):
-    correlation_id = fields.Str(required=True)
-    file_extension = fields.Str(required=True)
+from pydantic.dataclasses import dataclass
+from pydantic.json import pydantic_encoder
 
 
 @dataclass
@@ -27,4 +22,4 @@ class Response:
     final: bool = True
 
     def encode(self) -> bytes:
-        return json.dumps(asdict(self)).encode()
+        return json.dumps(self, default=pydantic_encoder).encode()

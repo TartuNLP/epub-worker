@@ -1,15 +1,17 @@
-FROM koodivaramu.eesti.ee:5050/taltechnlp/kiirkirjutaja:0.2.1
+FROM koodivaramu.eesti.ee:5050/taltechnlp/kiirkirjutaja:latest
 
 COPY requirements.txt .
 
 RUN pip install --user -r requirements.txt && \
     rm requirements.txt
 
+ENV PYTHONPATH="${PYTHONPATH}:/opt/kiirkirjutaja"
+
+VOLUME /opt/app/audio
+WORKDIR /opt/app
+
 COPY . .
 
-VOLUME /opt/kiirkirjutaja/audio
-WORKDIR /opt/kiirkirjutaja
+RUN ln -s /opt/kiirkirjutaja && ln -s /opt/models
 
-RUN echo "python asr_main.py" > entrypoint.sh
-
-ENTRYPOINT ["bash", "entrypoint.sh"]
+ENTRYPOINT ["python", "main.py"]

@@ -1,4 +1,4 @@
-config/.env
+logging/.env
 .idea/
 __pycache__/
 *.iml

@@ -1,10 +1,11 @@
 # Automatic Speech Recognition (ASR) Worker
 
-A component that automatically recognises speech from an audio file and transcribes it into text.
+A component that automatically recognises speech from an audio file and transcribes it into text. The implementation
+is based entirely on [Kiirkirjutaja](https://github.com/alumae/kiirkirjutaja).
 
 ## Setup
 
-The worker can be used by running the prebuilt [docker image](ghcr.io/project-mtee/asr-worker). The 
+The worker can be used by running the prebuilt [docker image](https://ghcr.io/tartunlp/speech-to-text-worker). The 
 container is designed to run in a CPU environment. For a manual setup, please refer to the included Dockerfile and 
 the pip packages specification described in `requirements.txt`. 
 
@@ -12,17 +13,24 @@ The worker depends on the following components:
 - [RabbitMQ message broker](https://www.rabbitmq.com/)
 
 The following environment variables should be specified when running the container:
-- `MQ_USERNAME` - RabbitMQ username
-- `MQ_PASSWORD` - RabbitMQ user password
 - `MQ_HOST` - RabbitMQ host
 - `MQ_PORT` (optional) - RabbitMQ port (`5672` by default)
-- `HTTP_HOST` - speech recognition service API HOST
-- `HTTP_USERNAME` - speech recognition service API username (`user` by default)
-- `HTTP_PASSWORD` - speech recognition service API password (`pass` by default)
+- `MQ_USERNAME` - RabbitMQ username
+- `MQ_PASSWORD` - RabbitMQ user password
+- `MQ_EXCHANGE` (optional) - RabbitMQ exchange name (`speech-to-text` by default)
+- `MQ_CONNECTION_NAME` (optional) - friendly connection name (`ASR worker` by default)
+- `MQ_HEARTBEAT` (optional) - heartbeat value (`600` seconds by default)
+- `API_HOST` - [ASR service api](https://ghcr.io/tartunlp/speech-to-text-api) endpoint
+- `API_USERNAME` - ASR service API username (`user` by default)
+- `API_PASSWORD` - ASR service API password (`pass` by default)
 
 ### Performance and Hardware Requirements
 
-TODO
+The resource requirements of [Kiirkirjutaja](https://github.com/alumae/kiirkirjutaja) apply when running the worker:
+
+- *Around 16 GB memory should be enough (probably you can do with less)*
+- *Fairly modern fast CPU (development machine has Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz)*
+- *4 free CPU cores*
 
 ### Request Format
 

@@ -1,0 +1,15 @@
+[submodule "kiirkirjutaja"]
+	path = kiirkirjutaja
+	url = https://github.com/alumae/kiirkirjutaja.git
+[submodule "vosk-api"]
+	path = vosk-api
+	url = https://github.com/alumae/vosk-api
+[submodule "streaming-punctuator"]
+	path = streaming-punctuator
+	url = https://github.com/alumae/streaming-punctuator
+[submodule "online_speaker_change_detector"]
+	path = online_speaker_change_detector
+	url = https://github.com/alumae/online_speaker_change_detector.git
+[submodule "et-g2p-fst"]
+	path = et-g2p-fst
+	url = https://github.com/alumae/et-g2p-fst.git
