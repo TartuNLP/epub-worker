@@ -81,7 +81,8 @@ class ASR:
     def respond(self, response: Response, correlation_id: str):
         requests.post(f"{self.api_config.host}/{correlation_id}/transcription",
                       data=response.encode(),
-                      auth=self.api_auth)
+                      auth=self.api_auth,
+                      headers={'content-type': 'application/json'})
 
     def process_request(self, request: Request):
         filename = self._download_file(request.correlation_id, request.file_extension)
