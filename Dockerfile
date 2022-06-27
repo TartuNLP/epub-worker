@@ -1,4 +1,4 @@
-FROM koodivaramu.eesti.ee:5050/taltechnlp/kiirkirjutaja:latest
+FROM koodivaramu.eesti.ee:5050/taltechnlp/kiirkirjutaja:0.2.7
 
 COPY requirements.txt .
 

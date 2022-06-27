@@ -29,3 +29,7 @@ class APIConfig(BaseSettings):
 
     class Config:
         env_prefix = 'api_'
+
+
+mq_config = MQConfig()
+api_config = APIConfig()

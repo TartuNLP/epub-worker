@@ -24,6 +24,16 @@ The following environment variables should be specified when running the contain
 - `API_USERNAME` - ASR service API username (`user` by default)
 - `API_PASSWORD` - ASR service API password (`pass` by default)
 
+- Optional runtime flags (the `COMMAND` option):
+  - `--log-config` - path to logging config files (`logging/logging.ini` by default), `logging/debug.ini` can be used
+    for debug-level logging
+  - `--port` - port of the healthcheck probes (`8000` by default):
+
+- Endpoints for healthcheck probes:
+  - `/health/startup`
+  - `/health/readiness`
+  - `/health/liveness`
+
 ### Performance and Hardware Requirements
 
 The resource requirements of [Kiirkirjutaja](https://github.com/alumae/kiirkirjutaja) apply when running the worker:
