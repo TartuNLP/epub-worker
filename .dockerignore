@@ -10,3 +10,4 @@ online_speaker_change_detector
 streaming-punctuator
 vosk-api
 .gitmodules
+.github
