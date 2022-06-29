@@ -76,7 +76,7 @@ jobs:
           cache-to: type=inline
 
   sbom:
-
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
