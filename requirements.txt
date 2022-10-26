@@ -1,5 +1,10 @@
+numpy==1.21.2
 pydantic~=1.9.1
 pika~=1.2.1
 requests
 fastapi~=0.75.0
 uvicorn~=0.17.6
+ebooklib
+bs4
+pydub
+nltk

@@ -1,4 +1,4 @@
-import json
+#import json
 from pydantic.dataclasses import dataclass
 from pydantic.json import pydantic_encoder
 
@@ -11,7 +11,7 @@ class Request:
     correlation_id: str
     file_extension: str
 
-
+'''
 @dataclass
 class Response:
     """
@@ -23,3 +23,4 @@ class Response:
 
     def encode(self) -> bytes:
         return json.dumps(self, default=pydantic_encoder).encode()
+'''

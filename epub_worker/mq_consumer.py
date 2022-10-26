@@ -9,9 +9,9 @@ import pika
 import pika.exceptions
 from pika import credentials, BlockingConnection, ConnectionParameters
 
-from .config import mq_config, LANGUAGES
-from .schemas import Request, Response
-from .asr import ASR
+from .config import mq_config
+from .schemas import Request #, Response
+from .ebook_tts import EBookTTS
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +19,12 @@ X_EXPIRES = 60000
 
 
 class MQConsumer:
-    def __init__(self, asr: ASR):
+    def __init__(self, ebooktts: EBookTTS):
         """
         Initializes a RabbitMQ consumer class that listens for requests for a specific worker and responds to
         them.
         """
-        self.asr = asr
+        self.ebooktts = ebooktts
         self.routing_keys = []
         self.queue_name = None
         self.channel = None
@@ -36,9 +36,9 @@ class MQConsumer:
         Produce routing keys with the following format: exchange_name.src.tgt.domain.input_type
         """
         routing_keys = []
-        for language in LANGUAGES:
-            key = f'{mq_config.exchange}.{language}'
-            routing_keys.append(key)
+        #for speaker in SPEAKERS:
+            #key = f'{mq_config.exchange}' #.{speaker}'
+        routing_keys.append(f'{mq_config.exchange}')
         self.routing_keys = sorted(routing_keys)
         hashed = hashlib.sha256(str(self.routing_keys).encode('utf-8')).hexdigest()[:8]
         self.queue_name = f'{mq_config.exchange}_{hashed}'
@@ -113,12 +113,11 @@ class MQConsumer:
         try:
             request = json.loads(body)
             request = Request(**request)
-            self.asr.process_request(request)
+            self.ebooktts.process_request(request)
 
         except Exception as e:
             logger.exception(e)
-            response = Response(success=False, result='Unknown internal exception')
-            self.asr.respond(response, properties.correlation_id)
+            self.ebooktts.respond(correlation_id=properties.correlation_id, file_name='')
 
         channel.basic_ack(delivery_tag=method.delivery_tag)
 

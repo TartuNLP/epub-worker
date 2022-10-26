@@ -5,9 +5,12 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from asr_worker.config import api_config
-from asr_worker.mq_consumer import MQConsumer
-from asr_worker.asr import ASR
+from epub_worker.config import epub_api_config, tts_api_config
+from epub_worker.mq_consumer import MQConsumer
+from epub_worker.ebook_tts import EBookTTS
+
+import nltk
+nltk.download('punkt')
 
 parser = ArgumentParser()
 parser.add_argument('--log-config', type=FileType('r'), default='logging/logging.ini',
@@ -32,8 +35,8 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     global mq_thread
-    asr = ASR(api_config=api_config)
-    consumer = MQConsumer(asr=asr)
+    ebooktts = EBookTTS(epub_api_config=epub_api_config, tts_api_config=tts_api_config)
+    consumer = MQConsumer(ebooktts=ebooktts)
 
     mq_thread = threading.Thread(target=consumer.start)
     mq_thread.connected = False
