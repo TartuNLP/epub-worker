@@ -40,7 +40,7 @@ class EBookTTS:
                 "speaker": self.speaker,
                 "speed": self.speed
             }
-            with requests.post("https://api.tartunlp.ai/text-to-speech/v2",
+            with requests.post(f"https://{self.tts_api_config.host}:{self.tts_api_config.port}/text-to-speech/v2",
                 json=data_json,
                 headers={'Content-Type': 'application/json'}, stream=True) as r:
                 r.raise_for_status()
@@ -222,6 +222,9 @@ class EBookTTS:
         return filename
     
     def _clean_job(self, file_name: str, zip_file_name: str):
+        for i in os.listdir("epub"):
+            if i.startswith('sent-') and i.endswith('.wav'):
+                os.remove(i)
         if os.path.exists(file_name):
             os.remove(file_name)
         if os.path.exists(zip_file_name):
