@@ -18,7 +18,7 @@ The following environment variables should be specified when running the contain
 - `MQ_EXCHANGE` (optional) - RabbitMQ exchange name (`epub-to-audiobook` by default)
 - `MQ_CONNECTION_NAME` (optional) - friendly connection name (`epub worker` by default)
 - `MQ_HEARTBEAT` (optional) - heartbeat value (`600` seconds by default)
-- `API_HOST` - [Epub service api](https://ghcr.io/rlellep/epub-api) endpoint
+- `API_HOST` - [Epub service api](https://ghcr.io/TartuNLP/epub-api) endpoint
 - `API_USERNAME` - Epub service API username (`user` by default)
 - `API_PASSWORD` - Epub service API password (`pass` by default)
 
@@ -32,14 +32,15 @@ The following environment variables should be specified when running the contain
   - `/health/readiness`
   - `/health/liveness`
 
+<!---
 ### Performance and Hardware Requirements
 
 The following resource requirements apply when running the worker:
 
-- *Around 16 GB memory should be enough (probably you can do with less)*
+- *Around 8 GB memory should be enough (probably you can do with less)*
 - *Fairly modern fast CPU (development machine has Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz)*
 - *4 free CPU cores*
-
+-->
 ### Request Format
 
 The worker consumes epub job requests from a RabbitMQ message broker and after finishing audiobook,
