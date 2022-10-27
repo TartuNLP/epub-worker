@@ -183,7 +183,7 @@ class EBookTTS:
     
     def respond_fail(self, correlation_id: id, error_message: str):
         print("Job failed, posting error message to api.")
-        requests.post(f"http://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/audiobook",
+        requests.post(f"http://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/failed",
                 data={'error': error_message},
                 auth=self.epub_api_auth)
     
