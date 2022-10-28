@@ -21,6 +21,7 @@ class EpubAPIConfig(BaseSettings):
     """
     API configuration from environment variables
     """
+    protocol: str = 'http'
     host: str = 'localhost'
     port: int = 80
     username: str = 'guest'
@@ -34,6 +35,7 @@ class TtsAPIConfig(BaseSettings):
     """
     API configuration from environment variables
     """
+    protocol: str = 'http'
     host: str = 'localhost'
     port: int = 5000
     username: str = 'guest'

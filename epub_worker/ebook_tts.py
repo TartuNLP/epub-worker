@@ -40,7 +40,7 @@ class EBookTTS:
                 "speaker": self.speaker,
                 "speed": self.speed
             }
-            with requests.post(f"https://{self.tts_api_config.host}:{self.tts_api_config.port}/text-to-speech/v2",
+            with requests.post(f"{self.tts_api_config.protocol}://{self.tts_api_config.host}:{self.tts_api_config.port}/text-to-speech/v2",
                 json=data_json,
                 headers={'Content-Type': 'application/json'}, stream=True) as r:
                 r.raise_for_status()
@@ -183,7 +183,7 @@ class EBookTTS:
     
     def respond_fail(self, correlation_id: id, error_message: str):
         print("Job failed, posting error message to api.")
-        requests.post(f"http://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/failed",
+        requests.post(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/failed",
                 data={'error': error_message},
                 auth=self.epub_api_auth)
     
@@ -194,7 +194,7 @@ class EBookTTS:
             'Content-Disposition': 'form-data; name="file"; filename="' + file_name + '"',
             'Content-Type': 'application/zip'
         }
-        requests.post(f"http://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/audiobook",
+        requests.post(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/audiobook",
                 files=files,
                 auth=self.epub_api_auth)
 
@@ -209,11 +209,11 @@ class EBookTTS:
     def _download_job_data(self, correlation_id, file_extension="epub"):
         filename = f"epub/{correlation_id}.{file_extension}"
 
-        job_info = requests.get(f"http://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}", auth=self.epub_api_auth, stream=True).json()
+        job_info = requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}", auth=self.epub_api_auth, stream=True).json()
         self.speaker = job_info['speaker']
         self.speed = job_info['speed']
 
-        with requests.get(f"http://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/epub", auth=self.epub_api_auth, stream=True) as r:
+        with requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/epub", auth=self.epub_api_auth, stream=True) as r:
             r.raise_for_status()
             with open(filename, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192):
