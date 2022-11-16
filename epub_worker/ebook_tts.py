@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 GAP = re.compile(r'---( ---)*')
 silence = np.zeros(10000, dtype=np.int16)
 req = ['identifier', 'title', 'language', 'creator', 'contributor', 'publisher', 'rights', 'coverage', 'date', 'description']
+epub_folder = '/opt/app/epub'
+output_folder = '/opt/app/out'
 
 
 class EBookTTS:
@@ -57,7 +59,7 @@ class EBookTTS:
         counter = 0
         for sentence in sentences:
             counter += 1
-            file_name = "epub/sent-" + str(counter) + ".wav"
+            file_name = os.path.join(epub_folder, "sent-" + str(counter) + ".wav")
             if sentence:
                 sent_file = self._synth_request(sentence, file_name)
                 if type(sent_file) != str:
@@ -116,16 +118,16 @@ class EBookTTS:
             
         return contents
     
-    def _parse_book(self, epub_file, out_dir):
+    def _parse_book(self, epub_file):
         '''Parse ebook file and convert chapters to a speech waveform.'''
         book = epub.read_epub(epub_file)
 
         chapters = self._recurse_toc(book.toc)
 
-        zip_name = f"{os.path.join(out_dir, book.title)}.zip"
+        zip_name = f"{os.path.join(output_folder, book.title)}.zip"
         zip_file = zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED)
 
-        f = open(os.path.join(out_dir, "metadata.txt"), 'w')
+        f = open(os.path.join(output_folder, "metadata.txt"), 'w')
         for i in req:
             try:
                 info = book.get_metadata('DC', i)
@@ -136,7 +138,7 @@ class EBookTTS:
                 continue
         f.write('chapters: ' + str([i.title for i in chapters]) + '\n')
         f.close()
-        zip_file.write(os.path.join(out_dir, "metadata.txt"), arcname="metadata.txt")
+        zip_file.write(os.path.join(output_folder, "metadata.txt"), arcname="metadata.txt")
         
         contents = self._extract_content(book, chapters)
         
@@ -160,7 +162,7 @@ class EBookTTS:
                     "File Name": filename,
                     "Track": track}
 
-                with open(os.path.join(out_dir, f"{filename}_sents.txt"), 'w') as f:
+                with open(os.path.join(output_folder, f"{filename}_sents.txt"), 'w') as f:
                     f.write('\n'.join(sentences) + '\n')
 
                 waveform = self._synthesize_chapter(sentences)
@@ -172,11 +174,11 @@ class EBookTTS:
                 wavfile.write(out, 22050, waveform.astype(np.int16))
 
                 chapter_audio = AudioSegment.from_wav(out)
-                chapter_audio.export(os.path.join(out_dir, f"{filename}.mp3"),
+                chapter_audio.export(os.path.join(output_folder, f"{filename}.mp3"),
                                     format = "mp3",
                                     codec = "mp3",
                                     tags=tags)
-                zip_file.write(os.path.join(out_dir, f"{filename}.mp3"), arcname=f"{filename}.mp3")
+                zip_file.write(os.path.join(output_folder, f"{filename}.mp3"), arcname=f"{filename}.mp3")
         zip_file.close()
 
         return zip_name
@@ -184,7 +186,7 @@ class EBookTTS:
     def respond_fail(self, correlation_id: id, error_message: str):
         print("Job failed, posting error message to api.")
         requests.post(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/failed",
-                data={'error': error_message},
+                data={'error': error_message[:100]},
                 auth=self.epub_api_auth)
     
     def respond(self, correlation_id: id, file_name: str):
@@ -199,7 +201,7 @@ class EBookTTS:
                 auth=self.epub_api_auth)
 
     def predict_send(self, filename: str, correlation_id):
-        output_file_name = self._parse_book(filename, '/opt/app/out')
+        output_file_name = self._parse_book(filename)
         if len(output_file_name) == 2:
             self.respond_fail(correlation_id, str(output_file_name[0]))
             return output_file_name[1]
@@ -207,7 +209,7 @@ class EBookTTS:
         return output_file_name
 
     def _download_job_data(self, correlation_id, file_extension="epub"):
-        filename = f"epub/{correlation_id}.{file_extension}"
+        filename = f"{os.path.join(epub_folder, correlation_id)}.{file_extension}"
 
         job_info = requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}", auth=self.epub_api_auth, stream=True).json()
         self.speaker = job_info['speaker']
@@ -222,9 +224,9 @@ class EBookTTS:
         return filename
     
     def _clean_job(self, file_name: str, zip_file_name: str):
-        for i in os.listdir("epub"):
+        for i in os.listdir(epub_folder):
             if i.startswith('sent-') and i.endswith('.wav'):
-                os.remove(i)
+                os.remove(os.path.join(epub_folder, i))
         if os.path.exists(file_name):
             os.remove(file_name)
         if os.path.exists(zip_file_name):

@@ -1,19 +1,39 @@
-FROM python:3.8
+FROM python:3.10-alpine
 
-RUN pip install --upgrade pip
+# Install system dependencies
+RUN apk update && \
+    apk add --no-cache \
+        gcc \
+        g++ \
+        libffi-dev \
+        musl-dev \
+		gfortran \
+		cmake \
+		pkgconfig \
+		openblas-dev \
+		ffmpeg
 
-VOLUME /opt/app/epub
-VOLUME /opt/app/out
+WORKDIR /opt/app/out
+WORKDIR /opt/app/epub
 WORKDIR /opt/app
+
+RUN addgroup -S app && \
+    adduser -S -D -G app app && \
+    chown -R app:app /opt/app && \
+    chown -R app:app /opt/app/epub && \
+	chown -R app:app /opt/app/out
+USER app
+
+RUN pip install --user --upgrade pip
 
 ENV PATH="/home/app/.local/bin:${PATH}"
 
-COPY requirements.txt .
-COPY env.yml .
+COPY --chown=app:app requirements.txt .
+COPY --chown=app:app env.yml .
 
-RUN pip install -r requirements.txt && \
+RUN pip install --user -r requirements.txt && \
 	rm requirements.txt
 
-COPY . .
+COPY --chown=app:app . .
 
- ENTRYPOINT ["python", "main.py"]
+ENTRYPOINT ["python", "main.py"]
