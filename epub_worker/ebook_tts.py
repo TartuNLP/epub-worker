@@ -64,6 +64,8 @@ class EBookTTS:
                 sent_file = self._synth_request(sentence, file_name)
                 if type(sent_file) != str:
                     print(sentence)
+                    if str(sent_file).startswith("500 Server Error"):
+                        continue
                     return sent_file
                 files.append(sent_file)
         waveforms = []
