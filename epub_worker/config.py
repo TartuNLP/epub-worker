@@ -10,7 +10,7 @@ class MQConfig(BaseSettings):
     username: str = 'guest'
     password: str = 'guest'
     exchange: str = 'epub_to_audiobook'
-    heartbeat: int = 600
+    heartbeat: int = 3600
     connection_name: str = 'epub-worker'
 
     class Config:
