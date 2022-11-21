@@ -54,7 +54,7 @@ class EBookTTS:
             return e
 
 
-    def _synthesize_chapter(self, sentences):
+    def _synthesize_chapter(self, sentences, chapter_id):
         files = []
         counter = 0
         for sentence in sentences:
@@ -63,7 +63,7 @@ class EBookTTS:
             if sentence:
                 sent_file = self._synth_request(sentence, file_name)
                 if type(sent_file) != str:
-                    print(sentence)
+                    print(f'Unsuccessful tts request - Chapter {chapter_id} sentence {counter}: {sentence}')
                     if str(sent_file).startswith("500 Server Error"):
                         continue
                     return sent_file
@@ -167,7 +167,7 @@ class EBookTTS:
                 with open(os.path.join(output_folder, f"{filename}_sents.txt"), 'w') as f:
                     f.write('\n'.join(sentences) + '\n')
 
-                waveform = self._synthesize_chapter(sentences)
+                waveform = self._synthesize_chapter(sentences, track)
                 if type(waveform) != np.ndarray:
                     zip_file.close()
                     return waveform, zip_name
