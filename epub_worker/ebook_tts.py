@@ -19,6 +19,9 @@ from scipy.io import wavfile
 from pydub import AudioSegment
 from nltk import sent_tokenize
 
+import warnings
+warnings.filterwarnings("ignore", message="Warnings were encountered.")
+
 logger = logging.getLogger(__name__)
 GAP = re.compile(r'---( ---)*')
 silence = np.zeros(10000, dtype=np.int16)
