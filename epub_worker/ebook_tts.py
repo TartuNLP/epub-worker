@@ -67,7 +67,7 @@ class EBookTTS:
                 sent_file = self._synth_request(sentence, file_name)
                 if type(sent_file) != str:
                     print(f'Unsuccessful tts request - Chapter {chapter_id} sentence {counter}: {sentence}')
-                    if str(sent_file).startswith("500 Server Error"):
+                    if str(sent_file).startswith("500 Server Error") or str(sent_file).startswith("408"):
                         continue
                     return sent_file
                 files.append(sent_file)
@@ -125,8 +125,11 @@ class EBookTTS:
     
     def _parse_book(self, epub_file):
         '''Parse ebook file and convert chapters to a speech waveform.'''
-        book = epub.read_epub(epub_file)
-
+        try:
+            book = epub.read_epub(epub_file)
+        except Exception as e:
+            return str(e), f"{os.path.join(output_folder, os.path.splitext(epub_file)[0])}.zip"
+        
         chapters = self._recurse_toc(book.toc)
 
         zip_name = f"{os.path.join(output_folder, book.title)}.zip"
