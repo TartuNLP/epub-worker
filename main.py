@@ -1,4 +1,4 @@
-import threading
+from threading import Thread
 from argparse import ArgumentParser, FileType
 
 import uvicorn
@@ -21,7 +21,7 @@ parser.add_argument('--port', type=int, default='8000',
 args = parser.parse_args()
 
 app = FastAPI()
-mq_thread = threading.Thread()
+mq_thread = Thread()
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,7 +38,7 @@ async def startup():
     ebooktts = EBookTTS(epub_api_config=epub_api_config, tts_api_config=tts_api_config)
     consumer = MQConsumer(ebooktts=ebooktts)
 
-    mq_thread = threading.Thread(target=consumer.start)
+    mq_thread = Thread(target=consumer.start)
     mq_thread.connected = False
     mq_thread.consume = True
     mq_thread.start()

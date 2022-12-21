@@ -36,6 +36,16 @@ class EBookTTS:
         self.epub_api_auth = HTTPBasicAuth(self.epub_api_config.username, self.epub_api_config.password)
         self.tts_api_config = tts_api_config
         self.tts_api_auth = HTTPBasicAuth(self.tts_api_config.username, self.tts_api_config.password)
+        self.tts_request_counter = 0
+    
+
+    def is_cancelled(self):
+        response = requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{self.current_job_id}/check",
+                auth=self.epub_api_auth)
+        if response.json():
+            logger.info(f"Job in cancel queue: {{id: {self.current_job_id}}}")
+            return True
+        return False
 
     
     def _synth_request(self, sent: str, filename: str):
@@ -54,6 +64,7 @@ class EBookTTS:
                         f.write(chunk)
             return filename
         except Exception as e:
+            logger.info(f'Tts request error with sentence {sent}.')
             return e
 
 
@@ -61,12 +72,18 @@ class EBookTTS:
         files = []
         counter = 0
         for sentence in sentences:
+            self.tts_request_counter += 1
+            if self.tts_request_counter % 1000 == 0:
+                logger.info(f'Checking for cancel.')
+                if self.is_cancelled():
+                    logger.info("Cancelling job.")
+                    return False
             counter += 1
             file_name = os.path.join(epub_folder, "sent-" + str(counter) + ".wav")
             if sentence:
                 sent_file = self._synth_request(sentence, file_name)
                 if type(sent_file) != str:
-                    print(f'Unsuccessful tts request - Chapter {chapter_id} sentence {counter}: {sentence}')
+                    logger.info(f'Unsuccessful tts request - Chapter {chapter_id} sentence {counter}: {sentence}')
                     if str(sent_file).startswith("500 Server Error") or str(sent_file).startswith("408"):
                         continue
                     return sent_file
@@ -151,7 +168,7 @@ class EBookTTS:
         contents = self._extract_content(book, chapters)
         
         track = 0
-        print(len(chapters), 'chapters, ', len(contents), 'contents')
+        logger.info(f'{len(chapters)} chapters, {len(contents)} contents')
         for chapter, content in zip(chapters, contents):
             paragraphs = [paragraph.strip() for paragraph in content.stripped_strings]
             sentences = []
@@ -191,39 +208,39 @@ class EBookTTS:
 
         return zip_name
     
-    def respond_fail(self, correlation_id: id, error_message: str):
-        print("Job failed, posting error message to api.")
-        requests.post(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/failed",
+    def respond_fail(self, error_message: str):
+        logger.info("Job failed, posting error message to api.")
+        requests.post(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{self.current_job_id}/failed",
                 data={'error': error_message[:100]},
                 auth=self.epub_api_auth)
     
-    def respond(self, correlation_id: id, file_name: str):
-        print("Posting finished audiobook to api.")
+    def respond(self, file_name: str):
+        logger.info("Posting finished audiobook to api.")
         files = {
             'file': (file_name, open(file_name, 'rb'), 'application/zip'),
             'Content-Disposition': 'form-data; name="file"; filename="' + file_name + '"',
             'Content-Type': 'application/zip'
         }
-        requests.post(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/audiobook",
+        requests.post(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{self.current_job_id}/audiobook",
                 files=files,
                 auth=self.epub_api_auth)
 
-    def predict_send(self, filename: str, correlation_id):
+    def predict_send(self, filename: str):
         output_file_name = self._parse_book(filename)
         if len(output_file_name) == 2:
-            self.respond_fail(correlation_id, str(output_file_name[0]))
+            self.respond_fail(str(output_file_name[0]))
             return output_file_name[1]
-        self.respond(correlation_id, output_file_name)
+        self.respond(output_file_name)
         return output_file_name
 
-    def _download_job_data(self, correlation_id, file_extension="epub"):
-        filename = f"{os.path.join(epub_folder, correlation_id)}.{file_extension}"
+    def _download_job_data(self, file_extension="epub"):
+        filename = f"{os.path.join(epub_folder, self.current_job_id)}.{file_extension}"
 
-        job_info = requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}", auth=self.epub_api_auth, stream=True).json()
+        job_info = requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{self.current_job_id}", auth=self.epub_api_auth, stream=True).json()
         self.speaker = job_info['speaker']
         self.speed = job_info['speed']
 
-        with requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{correlation_id}/epub", auth=self.epub_api_auth, stream=True) as r:
+        with requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{self.current_job_id}/epub", auth=self.epub_api_auth, stream=True) as r:
             r.raise_for_status()
             with open(filename, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192):
@@ -241,6 +258,9 @@ class EBookTTS:
             os.remove(zip_file_name)
 
     def process_request(self, request: Request):
-        filename = self._download_job_data(request.correlation_id, request.file_extension)
-        zip_file_name = self.predict_send(filename, request.correlation_id)
+        self.current_job_id = request.correlation_id
+        if self.is_cancelled():
+            return
+        filename = self._download_job_data(request.file_extension)
+        zip_file_name = self.predict_send(filename)
         self._clean_job(filename, zip_file_name)

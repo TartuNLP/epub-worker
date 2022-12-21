@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 
 X_EXPIRES = 60000
 
-
 class MQConsumer:
+
     def __init__(self, ebooktts: EBookTTS):
         """
         Initializes a RabbitMQ consumer class that listens for requests for a specific worker and responds to
         them.
         """
         self.ebooktts = ebooktts
-        self.routing_keys = []
+        self.routing_key = ''
         self.queue_name = None
         self.channel = None
 
@@ -35,12 +35,8 @@ class MQConsumer:
         """
         Produce routing keys with the following format: exchange_name.src.tgt.domain.input_type
         """
-        routing_keys = []
-        #for speaker in SPEAKERS:
-            #key = f'{mq_config.exchange}' #.{speaker}'
-        routing_keys.append(f'{mq_config.exchange}')
-        self.routing_keys = sorted(routing_keys)
-        hashed = hashlib.sha256(str(self.routing_keys).encode('utf-8')).hexdigest()[:8]
+        self.routing_key = mq_config.exchange
+        hashed = hashlib.sha256(str(self.routing_key).encode('utf-8')).hexdigest()[:8]
         self.queue_name = f'{mq_config.exchange}_{hashed}'
 
     def start(self):
@@ -95,12 +91,14 @@ class MQConsumer:
         })
         self.channel.exchange_declare(exchange=mq_config.exchange, exchange_type='direct')
 
-        for route in self.routing_keys:
-            self.channel.queue_bind(exchange=mq_config.exchange, queue=self.queue_name,
-                                    routing_key=route)
+        self.channel.queue_bind(exchange=mq_config.exchange, queue=self.queue_name,
+                                routing_key=self.routing_key)
 
         self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(queue=self.queue_name, on_message_callback=self._on_request)
+    
+    def is_cancelled(self):
+        return True
 
     def _on_request(self, channel: pika.adapters.blocking_connection.BlockingChannel, method: pika.spec.Basic.Deliver,
                     properties: pika.BasicProperties, body: bytes):
@@ -117,7 +115,7 @@ class MQConsumer:
 
         except Exception as e:
             logger.exception(e)
-            self.ebooktts.respond(correlation_id=properties.correlation_id, file_name='')
+            self.ebooktts.respond_fail(correlation_id=properties.correlation_id, error_message=str(e))
 
         channel.basic_ack(delivery_tag=method.delivery_tag)
 
