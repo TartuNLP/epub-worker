@@ -43,7 +43,7 @@ class EBookTTS:
         response = requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{self.current_job_id}/check",
                 auth=self.epub_api_auth)
         if response.json():
-            logger.info(f"Job in cancel queue: {{id: {self.current_job_id}}}")
+            logger.info(f"Job {self.current_job_id} was cancelled.")
             return True
         return False
 
@@ -76,7 +76,7 @@ class EBookTTS:
             if self.tts_request_counter % 1000 == 0:
                 logger.info(f'Checking for cancel.')
                 if self.is_cancelled():
-                    logger.info("Cancelling job.")
+                    logger.info("Stopping...")
                     return False
             counter += 1
             file_name = os.path.join(epub_folder, "sent-" + str(counter) + ".wav")
@@ -228,14 +228,15 @@ class EBookTTS:
     def predict_send(self, filename: str):
         output_file_name = self._parse_book(filename)
         if len(output_file_name) == 2:
-            self.respond_fail(str(output_file_name[0]))
+            if output_file_name[0]:     #False only when job was manually cancelled
+                self.respond_fail(str(output_file_name[0]))
             return output_file_name[1]
         self.respond(output_file_name)
         return output_file_name
 
     def _download_job_data(self, file_extension="epub"):
         filename = f"{os.path.join(epub_folder, self.current_job_id)}.{file_extension}"
-
+        
         job_info = requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{self.current_job_id}", auth=self.epub_api_auth, stream=True).json()
         self.speaker = job_info['speaker']
         self.speed = job_info['speed']
@@ -259,8 +260,6 @@ class EBookTTS:
 
     def process_request(self, request: Request):
         self.current_job_id = request.correlation_id
-        if self.is_cancelled():
-            return
         filename = self._download_job_data(request.file_extension)
         zip_file_name = self.predict_send(filename)
         self._clean_job(filename, zip_file_name)

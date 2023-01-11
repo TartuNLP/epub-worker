@@ -96,9 +96,6 @@ class MQConsumer:
 
         self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(queue=self.queue_name, on_message_callback=self._on_request)
-    
-    def is_cancelled(self):
-        return True
 
     def _on_request(self, channel: pika.adapters.blocking_connection.BlockingChannel, method: pika.spec.Basic.Deliver,
                     properties: pika.BasicProperties, body: bytes):
