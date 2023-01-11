@@ -64,7 +64,6 @@ class EBookTTS:
                         f.write(chunk)
             return filename
         except Exception as e:
-            logger.info(f'Tts request error with sentence {sent}.')
             return e
 
 
@@ -74,7 +73,6 @@ class EBookTTS:
         for sentence in sentences:
             self.tts_request_counter += 1
             if self.tts_request_counter % 1000 == 0:
-                logger.info(f'Checking for cancel.')
                 if self.is_cancelled():
                     logger.info("Stopping...")
                     return False
@@ -84,7 +82,7 @@ class EBookTTS:
                 sent_file = self._synth_request(sentence, file_name)
                 if type(sent_file) != str:
                     logger.info(f'Unsuccessful tts request - Chapter {chapter_id} sentence {counter}: {sentence}')
-                    if str(sent_file).startswith("500 Server Error") or str(sent_file).startswith("408"):
+                    if str(sent_file).startswith("500") or str(sent_file).startswith("408"):
                         continue
                     return sent_file
                 files.append(sent_file)
@@ -94,50 +92,55 @@ class EBookTTS:
                 waveforms.append(silence)
             waveforms.append(wavfile.read(file)[1])
         waveforms = np.concatenate(waveforms)
-
         return waveforms
     
 
-    def _recurse_toc(self, toc):
+    def _recurse_toc(self, book):
         chapters = []
-        for item in toc:
-            if type(item)==ebooklib.epub.Link:
+        for item in book.toc:
+            if type(item) == ebooklib.epub.Link and BeautifulSoup(book.get_item_with_href(item.href).get_content(), features='xml').text.strip():
                 chapters.append(item)
             elif type(item)==tuple and len(item)==2 and type(item[0])==ebooklib.epub.Section:
-                chapters = chapters + self._recurse_toc(item[1])
+                chapters += self._recurse_toc(item[1])
         return chapters
 
 
-    def _extract_content(self, book, chapters):
-        contents = []    
-        for i, chapter in enumerate(chapters):
-            href = chapter.href.split('#')[0]
+    def _extract_content(self, book, chapters, toc_type=True):
+        contents = []
+        if toc_type:
+            for i, chapter in enumerate(chapters):
+                href = chapter.href.split('#')[0]
 
-            content = book.get_item_with_href(href)
-            content = BeautifulSoup(content.get_content(), features="lxml")
-            text = re.sub('\s+', ' ', content.prettify()).strip()
+                content = book.get_item_with_href(href)
+                content = BeautifulSoup(content.get_content(), features="lxml")
+                text = re.sub('\s+', ' ', content.prettify()).strip()
 
-            # Exact chapter start element is defined
-            if "#" in chapter.href:
-                start = chapter.href.split('#')[1]
-                start = re.sub('\s+', ' ', content.find(id=start).prettify()).strip()
-                text = text[text.find(start):]
+                # Exact chapter start element is defined
+                if "#" in chapter.href:
+                    start = chapter.href.split('#')[1]
+                    start = re.sub('\s+', ' ', content.find(id=start).prettify()).strip()
+                    text = text[text.find(start):]
 
-            # Next chapter starts inside the same content block
-            if i+1 != len(chapters) and href == chapters[i+1].href.split('#')[0]:
-                stop = chapters[i+1].href.split('#')[1]
-                stop = re.sub('\s+', ' ', content.find(id=stop).prettify()).strip()
-                text = text[:text.find(stop)]
+                # Next chapter starts inside the same content block
+                if i+1 != len(chapters) and href == chapters[i+1].href.split('#')[0]:
+                    stop = chapters[i+1].href.split('#')[1]
+                    stop = re.sub('\s+', ' ', content.find(id=stop).prettify()).strip()
+                    text = text[:text.find(stop)]
 
-
-            content = BeautifulSoup(text)
-            # remove text formatting
-            for tag_type in ['i', 'u', 'b', 'em']:
-                for tag in content.find_all(tag_type):
-                    tag.unwrap()
-            content.smooth()
-            contents.append(content)
-            
+                content = BeautifulSoup(text)
+                # remove text formatting
+                for tag_type in ['i', 'u', 'b', 'em']:
+                    for tag in content.find_all(tag_type):
+                        tag.unwrap()
+                content.smooth()
+                contents.append(content)
+        else:
+            for chapter in chapters:
+                content = BeautifulSoup(chapter.get_content(), features='xml')
+                content = re.sub('\s+', ' ', content.prettify()).strip()
+                content = BeautifulSoup(content, features='xml')
+                content.smooth()
+                contents.append(content)
         return contents
     
     def _parse_book(self, epub_file):
@@ -146,8 +149,6 @@ class EBookTTS:
             book = epub.read_epub(epub_file)
         except Exception as e:
             return str(e), f"{os.path.join(output_folder, os.path.splitext(epub_file)[0])}.zip"
-        
-        chapters = self._recurse_toc(book.toc)
 
         zip_name = f"{os.path.join(output_folder, book.title)}.zip"
         zip_file = zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED)
@@ -161,11 +162,17 @@ class EBookTTS:
                 f.write(i + ': ' + str(info[0][0]) + '\n')
             except KeyError:
                 continue
+        
+        chapters = self._recurse_toc(book)
+        if chapters:
+            contents = self._extract_content(book, chapters)
+        else:
+            chapters = [item for item in book.get_items() if ebooklib.ITEM_DOCUMENT == item.get_type()]
+            contents = self._extract_content(book, chapters, False)
+        
         f.write('chapters: ' + str([i.title for i in chapters]) + '\n')
         f.close()
         zip_file.write(os.path.join(output_folder, "metadata.txt"), arcname="metadata.txt")
-        
-        contents = self._extract_content(book, chapters)
         
         track = 0
         logger.info(f'{len(chapters)} chapters, {len(contents)} contents')
