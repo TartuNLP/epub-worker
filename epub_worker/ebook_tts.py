@@ -98,9 +98,12 @@ class EBookTTS:
     def _recurse_toc(self, book):
         chapters = []
         for item in book.toc:
-            if type(item) == ebooklib.epub.Link and BeautifulSoup(book.get_item_with_href(item.href).get_content(), features='xml').text.strip():
-                chapters.append(item)
-            elif type(item)==tuple and len(item)==2 and type(item[0])==ebooklib.epub.Section:
+            try:
+                if type(item) == ebooklib.epub.Link and BeautifulSoup(book.get_item_with_href(item.href).get_content(), features='xml').text.strip():
+                    chapters.append(item)
+            except:
+                pass
+            if type(item)==tuple and len(item)==2 and type(item[0])==ebooklib.epub.Section:
                 chapters += self._recurse_toc(item[1])
         return chapters
 
