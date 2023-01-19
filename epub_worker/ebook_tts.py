@@ -94,19 +94,20 @@ class EBookTTS:
         waveforms = np.concatenate(waveforms)
         return waveforms
     
-
-    def _recurse_toc(self, book):
+    '''
+    def _recurse_toc(self, toc, book):
         chapters = []
-        for item in book.toc:
-            try:
-                if type(item) == ebooklib.epub.Link and BeautifulSoup(book.get_item_with_href(item.href).get_content(), features='xml').text.strip():
-                    chapters.append(item)
-            except:
-                pass
-            if type(item)==tuple and len(item)==2 and type(item[0])==ebooklib.epub.Section:
-                chapters += self._recurse_toc(item[1])
+        for item in toc:
+            if type(item) == ebooklib.epub.Link:
+                try:
+                    if BeautifulSoup(book.get_item_with_href(item.href).get_content(), features='xml').text.strip():
+                        chapters.append(item)
+                except:
+                    pass
+            elif type(item)==tuple and len(item)==2 and type(item[0])==ebooklib.epub.Section:
+                chapters += self._recurse_toc(item[1], book)
         return chapters
-
+    '''
 
     def _extract_content(self, book, chapters, toc_type=True):
         contents = []
@@ -136,14 +137,16 @@ class EBookTTS:
                     for tag in content.find_all(tag_type):
                         tag.unwrap()
                 content.smooth()
-                contents.append(content)
+                if content:
+                    contents.append(content)
         else:
             for chapter in chapters:
                 content = BeautifulSoup(chapter.get_content(), features='xml')
                 content = re.sub('\s+', ' ', content.prettify()).strip()
                 content = BeautifulSoup(content, features='xml')
                 content.smooth()
-                contents.append(content)
+                if content:
+                    contents.append(content)
         return contents
     
     def _parse_book(self, epub_file):
@@ -166,12 +169,15 @@ class EBookTTS:
             except KeyError:
                 continue
         
-        chapters = self._recurse_toc(book)
+        '''
+        chapters = self._recurse_toc(book.toc, book)
         if chapters:
             contents = self._extract_content(book, chapters)
         else:
-            chapters = [item for item in book.get_items() if ebooklib.ITEM_DOCUMENT == item.get_type()]
-            contents = self._extract_content(book, chapters, False)
+        '''
+
+        chapters = [item for item in book.get_items() if ebooklib.ITEM_DOCUMENT == item.get_type()]
+        contents = self._extract_content(book, chapters, False)
         
         f.write('chapters: ' + str([i.title for i in chapters]) + '\n')
         f.close()
