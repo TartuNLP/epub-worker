@@ -112,7 +112,7 @@ class MQConsumer:
 
         except Exception as e:
             logger.exception(e)
-            self.ebooktts.respond_fail(correlation_id=properties.correlation_id, error_message=str(e))
+            self.ebooktts.respond_fail(error_message=str(e))
 
         channel.basic_ack(delivery_tag=method.delivery_tag)
 

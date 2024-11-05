@@ -10,7 +10,7 @@ from epub_worker.mq_consumer import MQConsumer
 from epub_worker.ebook_tts import EBookTTS
 
 import nltk
-nltk.download('punkt')
+nltk.download('punkt_tab')
 
 parser = ArgumentParser()
 parser.add_argument('--log-config', type=FileType('r'), default='logging/logging.ini',

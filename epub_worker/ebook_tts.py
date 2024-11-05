@@ -159,6 +159,7 @@ class EBookTTS:
         zip_name = f"{os.path.join(output_folder, book.title)}.zip"
         zip_file = zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED)
 
+        author = ''
         f = open(os.path.join(output_folder, "metadata.txt"), 'w')
         for i in req:
             try:
@@ -166,6 +167,8 @@ class EBookTTS:
                 if not info:
                     continue
                 f.write(i + ': ' + str(info[0][0]) + '\n')
+                if i == 'creator':
+                    author = info[0][0]
             except KeyError:
                 continue
         
@@ -199,9 +202,10 @@ class EBookTTS:
                 
                 filename = "{}_{:03d}".format(book.title, track)
 
-                tags={"Title": chapter.title.strip(),
-                    "File Name": filename,
-                    "Track": track}
+                tags={"title": chapter.title.strip(),
+                    "artist": author,
+                    "file name": filename,
+                    "track": track}
 
                 with open(os.path.join(output_folder, f"{filename}_sents.txt"), 'w') as f:
                     f.write('\n'.join(sentences) + '\n')
@@ -253,7 +257,9 @@ class EBookTTS:
     def _download_job_data(self, file_extension="epub"):
         filename = f"{os.path.join(epub_folder, self.current_job_id)}.{file_extension}"
         
-        job_info = requests.get(f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{self.current_job_id}", auth=self.epub_api_auth, stream=True).json()
+        url = f"{self.epub_api_config.protocol}://{self.epub_api_config.host}:{self.epub_api_config.port}/{self.current_job_id}"
+        job_info = requests.get(url, auth=self.epub_api_auth, stream=True).json()
+
         self.speaker = job_info['speaker']
         self.speed = job_info['speed']
 
