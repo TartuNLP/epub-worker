@@ -200,11 +200,11 @@ class EBookTTS:
             if sentences:
                 track += 1
                 
-                filename = "{}_{:03d}".format(book.title, track)
+                filename = "{:03d}_{}".format(track, book.title)
 
                 tags={"title": chapter.title.strip(),
                     "artist": author,
-                    "file name": filename,
+                    "album": book.title,
                     "track": track}
 
                 with open(os.path.join(output_folder, f"{filename}_sents.txt"), 'w') as f:
